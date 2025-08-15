@@ -6,6 +6,11 @@ import dotenv
 dotenv.load_dotenv()
 sys.path.insert(0, os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
+
 """
 Django settings for core project.
 
@@ -45,15 +50,24 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'src.users',
+
+
+    # project
     'src.users.apps.UsersConfig',
+    'src.listings.apps.ListingsConfig',
     # 'src.listings',
     # 'src.bookings',
-    # 'src.reviews'
+    # 'src.reviews',
+    # 'src.users',
     # 'src.apps.CoreConfig',
+    'rest_framework',
+
+    # 3th party
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,6 +76,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+INTERNAL_IPS = env.list('INTERNAL_IPS', default=['127.0.0.1'])
 
 ROOT_URLCONF = 'core.urls'
 

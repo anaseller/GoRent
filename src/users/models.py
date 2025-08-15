@@ -45,5 +45,8 @@ class User(AbstractUser, BaseFields):
 
     objects = CustomUserManager()
 
+    class Meta:
+        app_label = 'users'
+
     def __str__(self):
         return self.email
