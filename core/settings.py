@@ -1,8 +1,10 @@
 from decouple import config
 import os
+import  sys
 import dotenv
 
 dotenv.load_dotenv()
+sys.path.insert(0, os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 
 """
 Django settings for core project.
@@ -38,11 +40,17 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'django.contrib.auth',
+    'django.contrib.admin',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'src.apps.CoreConfig',
+    # 'src.users',
+    'src.users.apps.UsersConfig',
+    # 'src.listings',
+    # 'src.bookings',
+    # 'src.reviews'
+    # 'src.apps.CoreConfig',
 ]
 
 MIDDLEWARE = [
@@ -55,7 +63,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'GoRent.urls'
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
@@ -131,3 +139,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'users.User'
