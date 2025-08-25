@@ -21,6 +21,12 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
         # создавать объявления может только арендодатель
         return [IsLandlord()]
 
+    def perform_create(self, serializer):
+        """
+        Автоматически заполняет поле landlord текущим авторизованным пользователем
+        """
+        serializer.save(landlord=self.request.user)
+
 
 class ListingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Listing.objects.all()

@@ -27,7 +27,7 @@ class BookingConfirmRejectAPIView(generics.UpdateAPIView):
     """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
-    permission_classes = [IsLandlord]
+    permission_classes = [permissions.IsAuthenticated]
 
     def put(self, request, *args, **kwargs):
         booking = self.get_object()
