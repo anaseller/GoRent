@@ -1,5 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework import serializers
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Q
+
 from .models import Booking, BookingStatusChoices
 from .serializers import BookingSerializer
 from src.listings.permissions import IsLandlord
@@ -18,6 +23,23 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
         return Booking.objects.filter(tenant=user)
 
     def perform_create(self, serializer):
+        check_in = serializer.validated_data.get('check_in_date')
+        check_out = serializer.validated_data.get('check_out_date')
+        listing_id = serializer.validated_data.get('listing').id
+
+        # Проверка на перекрывающиеся бронирования
+        overlapping_bookings = Booking.objects.filter(
+            listing_id=listing_id,
+            status__in=[BookingStatusChoices.PENDING, BookingStatusChoices.CONFIRMED]
+        ).filter(
+            Q(check_in_date__lt=check_out) & Q(check_out_date__gt=check_in)
+        ).exists()
+
+        if overlapping_bookings:
+            raise serializers.ValidationError(
+                {"detail": "This listing is not available for the requested dates."}
+            )
+
         serializer.save(tenant=self.request.user)
 
 
@@ -62,13 +84,20 @@ class BookingCancelAPIView(generics.UpdateAPIView):
     def put(self, request, *args, **kwargs):
         booking = self.get_object()
 
-        # проверка, что бронирование принадлежит текущему арендатору
+        # Проверяем, что бронирование принадлежит текущему арендатору
         if booking.tenant != self.request.user:
             return Response({"detail": "You do not have permission to perform this action."},
                             status=status.HTTP_403_FORBIDDEN)
 
-        if booking.status not in [BookingStatusChoices.PENDING, BookingStatusChoices.CONFIRMED]:
-            return Response({"detail": "Cannot cancel a booking that is not 'pending' or 'confirmed'."},
+        # Проверка: если бронь уже отменена или отклонена, ее нельзя менять
+        if booking.status in [BookingStatusChoices.CANCELLED, BookingStatusChoices.REJECTED]:
+            return Response({"detail": "Cannot change status of this booking."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Если бронирование подтверждено, но до заезда осталось менее 2 суток, нельзя отменить
+        time_to_check_in = booking.check_in_date - timezone.now().date()
+        if booking.status == BookingStatusChoices.CONFIRMED and time_to_check_in <= timedelta(days=2):
+            return Response({"detail": "Cancellation is not allowed less than 2 days before check-in."},
                             status=status.HTTP_400_BAD_REQUEST)
 
         booking.status = BookingStatusChoices.CANCELLED
