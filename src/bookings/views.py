@@ -8,6 +8,7 @@ from django.db.models import Q
 from .models import Booking, BookingStatusChoices
 from .serializers import BookingSerializer
 from src.listings.permissions import IsLandlord
+from src.listings.models import Listing
 
 
 class BookingListCreateAPIView(generics.ListCreateAPIView):
@@ -18,14 +19,26 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
         user = self.request.user
         if user.is_landlord:
             # Арендодатель видит бронирования для своих объявлений
-            return Booking.objects.filter(listing__landlord=user)
+            return Booking.objects.filter(listing__landlord=user).select_related('listing', 'tenant')
         # Арендатор видит только свои бронирования
-        return Booking.objects.filter(tenant=user)
+        return Booking.objects.filter(tenant=user).select_related('listing', 'tenant')
 
     def perform_create(self, serializer):
         check_in = serializer.validated_data.get('check_in_date')
         check_out = serializer.validated_data.get('check_out_date')
-        listing_id = serializer.validated_data.get('listing').id
+
+        # Получаем id объявления из url и проверяем его наличие
+        listing_id = self.kwargs.get('listing_pk')
+        try:
+            listing = Listing.objects.get(pk=listing_id)
+        except Listing.DoesNotExist:
+            raise serializers.ValidationError({"detail": "Listing not found."})
+
+        # Проверка на прошедшие даты
+        if check_in < timezone.now().date():
+            raise serializers.ValidationError(
+                {"detail": "Check-in date cannot be in the past."}
+            )
 
         # Проверка на перекрывающиеся бронирования
         overlapping_bookings = Booking.objects.filter(
@@ -40,8 +53,7 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
                 {"detail": "This listing is not available for the requested dates."}
             )
 
-        serializer.save(tenant=self.request.user)
-
+        serializer.save(tenant=self.request.user, listing=listing)
 
 class BookingConfirmRejectAPIView(generics.UpdateAPIView):
     """
@@ -89,7 +101,7 @@ class BookingCancelAPIView(generics.UpdateAPIView):
             return Response({"detail": "You do not have permission to perform this action."},
                             status=status.HTTP_403_FORBIDDEN)
 
-        # Проверка: если бронь уже отменена или отклонена, ее нельзя менять
+        # Проверяем если бронь уже отменена или отклонена, ее нельзя менять
         if booking.status in [BookingStatusChoices.CANCELLED, BookingStatusChoices.REJECTED]:
             return Response({"detail": "Cannot change status of this booking."},
                             status=status.HTTP_400_BAD_REQUEST)
