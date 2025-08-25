@@ -10,9 +10,12 @@ class IsLandlord(permissions.BasePermission):
         return request.user.is_authenticated and request.user.is_landlord
 
     def has_object_permission(self, request, view, obj):
-        # GET-запросы доступны любому, но только арендодатель может редактировать и удалять
-        if request.method in permissions.SAFE_METHODS:
-            return True
-
-        # Только владелец объявления может его редактировать или удалять
-        return obj.landlord == request.user
+        def has_object_permission(self, request, view, obj):
+            # разрешает доступ только если объект принадлежит арендодателю
+            # используем obj.listing.landlord для бронирований
+            # и obj.landlord для объявлений
+            if hasattr(obj, 'landlord'):
+                return obj.landlord == request.user
+            elif hasattr(obj, 'listing'):
+                return obj.listing.landlord == request.user
+            return False
