@@ -1,7 +1,6 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, filters
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from ipware import get_client_ip
 from django.utils import timezone
 from datetime import timedelta
@@ -27,6 +26,32 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
             return [permissions.AllowAny()]
         # создавать объявления может только арендодатель
         return [IsLandlord()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Получаем поисковой запрос из параметров url
+        search_query = self.request.query_params.get('search', None)
+
+        if search_query:
+            # Логируем поисковой запрос
+            user = self.request.user if self.request.user.is_authenticated else None
+            ip_address, _ = get_client_ip(self.request)
+
+            History.objects.create(
+                user=user,
+                search_query=search_query,
+                action_type='search',
+                ip_address=ip_address
+            )
+
+            # Применяем фильтр для поиска
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        return queryset
 
     def perform_create(self, serializer):
         """
@@ -77,16 +102,24 @@ class ListingViewsCountAPIView(generics.ListAPIView):
     serializer_class = ListingViewsCountSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    filter_backends = [filters.OrderingFilter]
+
+    ordering_fields = ['views_count']
+    ordering = ['-views_count']
+
     def get_queryset(self):
         user = self.request.user
         queryset = Listing.objects.all()
 
-        # собираем количество просмотров для каждого объявления
+        # Собираем количество просмотров для каждого объявления
         queryset = queryset.annotate(
             views_count=Count('history', filter=Q(history__action_type='view'))
         )
 
-        # фильтрация в зависимости от типа пользователя: арендодатель видит только свои обьявления
+        # Применяем фильтрацию в зависимости от типа пользователя
         if user.is_landlord:
-            return queryset.filter(landlord=user)
+            # Арендодатель видит только свои объявления
+            queryset = queryset.filter(landlord=user)
+
+        # Возвращаем queryset, к которому DRF автоматически применит сортировку
         return queryset

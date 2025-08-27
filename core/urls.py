@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/bookings/', include('src.bookings.urls')),
     path('api/reviews/', include('src.reviews.urls')),
     path('api/listings/', include('src.listings.urls')),
+    path('api/history/', include('src.history.urls')),
 ]
 
 if settings.DEBUG:

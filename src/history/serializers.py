@@ -8,3 +8,7 @@ class HistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = History
         fields = ['id', 'user_email', 'listing_title', 'action_type', 'timestamp']
+
+class PopularSearchSerializer(serializers.Serializer):
+    search_query = serializers.CharField(max_length=255)
+    search_count = serializers.IntegerField()
