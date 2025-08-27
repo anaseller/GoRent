@@ -1,4 +1,5 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from ipware import get_client_ip
@@ -10,7 +11,7 @@ from .serializers import ListingSerializer
 from .permissions import IsLandlord
 from .filters import ListingFilter
 from src.history.models import History
-
+from .serializers import ListingViewsCountSerializer
 
 
 class ListingListCreateAPIView(generics.ListCreateAPIView):
@@ -67,3 +68,25 @@ class ListingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
                 History.objects.create(listing=instance, action_type='view', ip_address=ip_address)
 
         return super().retrieve(request, *args, **kwargs)
+
+
+class ListingViewsCountAPIView(generics.ListAPIView):
+    """
+    Возвращаем список объявлений с количеством просмотров
+    """
+    serializer_class = ListingViewsCountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Listing.objects.all()
+
+        # собираем количество просмотров для каждого объявления
+        queryset = queryset.annotate(
+            views_count=Count('history', filter=Q(history__action_type='view'))
+        )
+
+        # фильтрация в зависимости от типа пользователя: арендодатель видит только свои обьявления
+        if user.is_landlord:
+            return queryset.filter(landlord=user)
+        return queryset
