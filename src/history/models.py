@@ -10,7 +10,6 @@ class History(models.Model):
     search_query = models.CharField(max_length=255, null=True, blank=True)
     action_type = models.CharField(max_length=50) # 'view', 'search'
     timestamp = models.DateTimeField(auto_now_add=True)
-    # Защита от накрутки для неавторизованных пользователей
     session_key = models.CharField(max_length=40, null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 

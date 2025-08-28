@@ -16,9 +16,11 @@ from .serializers import ListingViewsCountSerializer
 class ListingListCreateAPIView(generics.ListCreateAPIView):
     queryset = Listing.objects.all()
     serializer_class = ListingSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = ListingFilter
     search_fields = ['title', 'description', 'address']
+
+    ordering_fields = ['price_per_night', 'created_at']
 
     def get_permissions(self):
         # все могут просматривать
@@ -121,5 +123,4 @@ class ListingViewsCountAPIView(generics.ListAPIView):
             # Арендодатель видит только свои объявления
             queryset = queryset.filter(landlord=user)
 
-        # Возвращаем queryset, к которому DRF автоматически применит сортировку
         return queryset

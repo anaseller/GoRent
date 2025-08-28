@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, exceptions
 from rest_framework.response import Response
 from rest_framework import serializers
 from django.utils import timezone
@@ -17,13 +17,17 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Booking.objects.all()
+
         if user.is_landlord:
-            # Арендодатель видит бронирования для своих объявлений
-            return Booking.objects.filter(listing__landlord=user).select_related('listing', 'tenant')
-        # Арендатор видит только свои бронирования
-        return Booking.objects.filter(tenant=user).select_related('listing', 'tenant')
+            # Арендодатель видит бронирования только для своих объявлений
+            return queryset.filter(listing__landlord=user).select_related('listing', 'tenant')
+        else:
+            # Арендатор видит только свои бронирования
+            return queryset.filter(tenant=user).select_related('listing', 'tenant')
 
     def perform_create(self, serializer):
+        user = self.request.user
         check_in = serializer.validated_data.get('check_in_date')
         check_out = serializer.validated_data.get('check_out_date')
 
@@ -33,6 +37,12 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
             listing = Listing.objects.get(pk=listing_id)
         except Listing.DoesNotExist:
             raise serializers.ValidationError({"detail": "Listing not found."})
+
+        # Арендодатель не может забронировать свое объявление
+        if user == listing.landlord:
+            raise exceptions.PermissionDenied(
+                "Landlords cannot book their own listings."
+            )
 
         # Проверка на прошедшие даты
         if check_in < timezone.now().date():

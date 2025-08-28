@@ -2,9 +2,14 @@ from rest_framework import serializers
 from .models import Booking
 
 class BookingSerializer(serializers.ModelSerializer):
-    tenant = serializers.ReadOnlyField(source='tenant.email')
+    tenant_email = serializers.ReadOnlyField(source='tenant.email')
+
+    listing_id = serializers.ReadOnlyField(source='listing.id')
+    listing_title = serializers.ReadOnlyField(source='listing.title')
 
     class Meta:
         model = Booking
-        fields = ['id', 'tenant', 'check_in_date', 'check_out_date', 'status', 'created_at', 'updated_at'] # <-- Проверьте, что 'status' здесь
-        read_only_fields = ['tenant']
+        fields = [
+            'id', 'tenant_email', 'listing_id', 'listing_title',
+            'check_in_date', 'check_out_date', 'status', 'created_at', 'updated_at'
+        ]
