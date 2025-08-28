@@ -11,7 +11,7 @@ class Listing(BaseFields):
     landlord = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listings')
     title = models.CharField(max_length=255)
     description = models.TextField()
-    address = models.CharField(max_length=255) # !доб валидацию и нормализацию
+    address = models.CharField(max_length=255)
     price_per_night = models.DecimalField(max_digits=10, decimal_places=2)
     num_rooms = models.PositiveIntegerField(default=1)
     housing_type = models.CharField(max_length=50, choices=HousingTypeChoices.choices,

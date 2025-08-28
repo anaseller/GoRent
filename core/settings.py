@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'src.listings.apps.ListingsConfig',
     'src.bookings.apps.BookingsConfig',
     'src.reviews.apps.ReviewsConfig',
+    'src.history.apps.HistoryConfig',
     # 'src.apps.CoreConfig',
     'rest_framework',
     'rest_framework_simplejwt',

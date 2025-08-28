@@ -18,3 +18,10 @@ class ListingSerializer(serializers.ModelSerializer):
         if len(value.split()) < 2:
             raise serializers.ValidationError("Please provide a more specific address.")
         return value.strip().lower()
+
+class ListingViewsCountSerializer(serializers.ModelSerializer):
+    views_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Listing
+        fields = ['id', 'title', 'views_count']
