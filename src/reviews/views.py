@@ -14,25 +14,25 @@ class ReviewListCreateAPIView(generics.ListCreateAPIView):
         user = self.request.user
         if user.is_authenticated:
             if user.is_landlord:
-                # арендодатель видит все отзывы на его объявления
+                # The landlord sees all reviews for their listings
                 return Review.objects.filter(listing__landlord=user)
             else:
-                # арендатор видит все отзывы на любые объявления
+                # The tenant sees all reviews for any listings
                 return Review.objects.all()
-        # для неаутентифицированных пользователей (они тоже могут смотреть)
+        # For unauthenticated users (they can also view)
         return Review.objects.all()
 
     def perform_create(self, serializer):
         user = self.request.user
         listing = serializer.validated_data.get('listing')
 
-        # Проверка, что пользователь не арендодатель своего объявления
+        # Check that the user is not the landlord of their own listing
         if user == listing.landlord:
             raise exceptions.PermissionDenied(
                 "Landlords cannot leave reviews on their own listings."
             )
 
-        # Проверка, что пользователь бронировал это объявление и бронирование завершено
+        # Check that the user booked this listing and the booking is completed
         has_completed_booking = Booking.objects.filter(
             tenant=user,
             listing=listing,
@@ -45,7 +45,7 @@ class ReviewListCreateAPIView(generics.ListCreateAPIView):
                 "You can only review a listing after a completed booking."
             )
 
-        # Проверка, что пользователь еще не оставлял отзыв на это объявление
+        # Check that the user has not yet left a review for this listing
         existing_review = Review.objects.filter(reviewer=user, listing=listing).exists()
         if existing_review:
             raise exceptions.PermissionDenied(

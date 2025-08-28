@@ -10,9 +10,9 @@ class IsLandlord(permissions.BasePermission):
         return request.user.is_authenticated and request.user.is_landlord
 
     def has_object_permission(self, request, view, obj):
-        # разрешает доступ только если объект принадлежит арендодателю
-        # используем obj.listing.landlord для бронирований
-        # и obj.landlord для объявлений
+        # Allows access only if the object belongs to the landlord
+        # use obj.listing.landlord for bookings
+        # and obj.landlord for listings
         if hasattr(obj, 'landlord'):
             return obj.landlord == request.user
         elif hasattr(obj, 'listing'):
