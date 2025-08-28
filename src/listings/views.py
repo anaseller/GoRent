@@ -23,20 +23,20 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
     ordering_fields = ['price_per_night', 'created_at']
 
     def get_permissions(self):
-        # все могут просматривать
+        # Everyone can view
         if self.request.method == 'GET':
             return [permissions.AllowAny()]
-        # создавать объявления может только арендодатель
+        # Only the landlord can create listings
         return [IsLandlord()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # Получаем поисковой запрос из параметров url
+        # We get the search query from the URL parameters
         search_query = self.request.query_params.get('search', None)
 
         if search_query:
-            # Логируем поисковой запрос
+            # Log the search query
             user = self.request.user if self.request.user.is_authenticated else None
             ip_address, _ = get_client_ip(self.request)
 
@@ -47,7 +47,7 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
                 ip_address=ip_address
             )
 
-            # Применяем фильтр для поиска
+            # Apply the filter for the search
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query)
@@ -57,7 +57,7 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         """
-        Автоматически заполняет поле landlord текущим авторизованным пользователем
+        Automatically fills the landlord field with the currently authenticated user
         """
         serializer.save(landlord=self.request.user)
 
@@ -68,7 +68,7 @@ class ListingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
 
     def get_permissions(self):
         """
-        Устанавливает права доступа в зависимости от метода запроса.
+        Sets permissions based on the request method
         """
         if self.request.method == 'GET':
             return [permissions.IsAuthenticatedOrReadOnly()]
@@ -80,7 +80,7 @@ class ListingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         user = request.user if request.user.is_authenticated else None
         ip_address, _ = get_client_ip(request)
 
-        # Защита от накрутки: не записываем просмотр, если он уже был в последние 30 минут с того же IP/пользователя
+        # Anti-fraud protection: do not record a view if it has already occurred in the last 30 minutes from the same IP/user
         threshold = timezone.now() - timedelta(minutes=30)
 
         if user:
@@ -99,7 +99,7 @@ class ListingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
 
 class ListingViewsCountAPIView(generics.ListAPIView):
     """
-    Возвращаем список объявлений с количеством просмотров
+    Return a list of listings with their view counts
     """
     serializer_class = ListingViewsCountSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -113,14 +113,14 @@ class ListingViewsCountAPIView(generics.ListAPIView):
         user = self.request.user
         queryset = Listing.objects.all()
 
-        # Собираем количество просмотров для каждого объявления
+        # Collect the number of views for each listing
         queryset = queryset.annotate(
             views_count=Count('history', filter=Q(history__action_type='view'))
         )
 
-        # Применяем фильтрацию в зависимости от типа пользователя
+        # Apply filtering based on the user type
         if user.is_landlord:
-            # Арендодатель видит только свои объявления
+            # The landlord sees only their own listings
             queryset = queryset.filter(landlord=user)
 
         return queryset

@@ -20,10 +20,10 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
         queryset = Booking.objects.all()
 
         if user.is_landlord:
-            # Арендодатель видит бронирования только для своих объявлений
+            # The landlord sees bookings only for their own listings
             return queryset.filter(listing__landlord=user).select_related('listing', 'tenant')
         else:
-            # Арендатор видит только свои бронирования
+            # The landlord sees only their own bookings
             return queryset.filter(tenant=user).select_related('listing', 'tenant')
 
     def perform_create(self, serializer):
@@ -31,26 +31,26 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
         check_in = serializer.validated_data.get('check_in_date')
         check_out = serializer.validated_data.get('check_out_date')
 
-        # Получаем id объявления из url и проверяем его наличие
+        # We get the listing id from the URL and check its existence
         listing_id = self.kwargs.get('listing_pk')
         try:
             listing = Listing.objects.get(pk=listing_id)
         except Listing.DoesNotExist:
             raise serializers.ValidationError({"detail": "Listing not found."})
 
-        # Арендодатель не может забронировать свое объявление
+        # The landlord cannot book their own listing
         if user == listing.landlord:
             raise exceptions.PermissionDenied(
                 "Landlords cannot book their own listings."
             )
 
-        # Проверка на прошедшие даты
+        # Check for past dates
         if check_in < timezone.now().date():
             raise serializers.ValidationError(
                 {"detail": "Check-in date cannot be in the past."}
             )
 
-        # Проверка на перекрывающиеся бронирования
+        # Check for overlapping bookings
         overlapping_bookings = Booking.objects.filter(
             listing_id=listing_id,
             status__in=[BookingStatusChoices.PENDING, BookingStatusChoices.CONFIRMED]
@@ -67,7 +67,7 @@ class BookingListCreateAPIView(generics.ListCreateAPIView):
 
 class BookingConfirmRejectAPIView(generics.UpdateAPIView):
     """
-    Арендодатель подтверждает или отклоняет бронирование
+    The landlord confirms or declines the booking
     """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
@@ -76,7 +76,7 @@ class BookingConfirmRejectAPIView(generics.UpdateAPIView):
     def put(self, request, *args, **kwargs):
         booking = self.get_object()
 
-        # проверка, что бронирование принадлежит текущему арендодателю
+        # Check that the booking belongs to the current landlord
         if booking.listing.landlord != self.request.user:
             return Response({"detail": "You do not have permission to perform this action."},
                             status=status.HTTP_403_FORBIDDEN)
@@ -97,7 +97,7 @@ class BookingConfirmRejectAPIView(generics.UpdateAPIView):
 
 class BookingCancelAPIView(generics.UpdateAPIView):
     """
-    Арендатор отменеят бронирование
+    The landlord cancels the booking
     """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
@@ -106,17 +106,17 @@ class BookingCancelAPIView(generics.UpdateAPIView):
     def put(self, request, *args, **kwargs):
         booking = self.get_object()
 
-        # Проверяем, что бронирование принадлежит текущему арендатору
+        # Check that the booking belongs to the current landlord
         if booking.tenant != self.request.user:
             return Response({"detail": "You do not have permission to perform this action."},
                             status=status.HTTP_403_FORBIDDEN)
 
-        # Проверяем если бронь уже отменена или отклонена, ее нельзя менять
+        # Check if the booking is already canceled or declined; it cannot be modified
         if booking.status in [BookingStatusChoices.CANCELLED, BookingStatusChoices.REJECTED]:
             return Response({"detail": "Cannot change status of this booking."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Если бронирование подтверждено, но до заезда осталось менее 2 суток, нельзя отменить
+        # If the booking is confirmed but less than 2 days remain until check-in, it cannot be canceled
         time_to_check_in = booking.check_in_date - timezone.now().date()
         if booking.status == BookingStatusChoices.CONFIRMED and time_to_check_in <= timedelta(days=2):
             return Response({"detail": "Cancellation is not allowed less than 2 days before check-in."},

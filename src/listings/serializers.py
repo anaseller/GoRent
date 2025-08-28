@@ -11,7 +11,7 @@ class ListingSerializer(serializers.ModelSerializer):
 
     def validate_address(self, value):
         """
-        Проверяет, что адрес не пуст и имеет хотя бы два слова.
+        Checks that the address is not empty and contains at least two words.
         """
         if not value:
             raise serializers.ValidationError("Address cannot be empty.")

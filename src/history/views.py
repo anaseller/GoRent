@@ -9,7 +9,7 @@ class HistoryListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        # Возвращаем только записи, связанные с текущим пользователем
+        # Return only records associated with the current user
         return History.objects.filter(user=user).select_related('listing')
 
 class PopularSearchAPIView(generics.ListAPIView):
@@ -17,7 +17,7 @@ class PopularSearchAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Агрегируем поисковые запросы по количеству
+        # Aggregate search queries by count
         return History.objects.filter(
             action_type='search',
             search_query__isnull=False
